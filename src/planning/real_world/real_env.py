@@ -14,7 +14,7 @@ import copy
 
 from multiprocessing.managers import SharedMemoryManager
 from real_world.camera.multi_realsense import MultiRealsense, SingleRealsense
-from real_world.xarm6 import XARM6
+from planning.real_world.pandas import XARM6
 from real_world.utils import depth2fgpcd, rpy_to_rotation_matrix, similarity_transform
 from plan_utils import decode_action_single
 
