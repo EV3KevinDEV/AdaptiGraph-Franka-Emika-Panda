@@ -1,0 +1,38 @@
+dataset:
+  folder: "../sim_data" # folder to save data
+  obj: "cloth"
+
+  # data collection
+  base: 0
+  n_episode: 100
+  n_timestep: 5
+  n_worker: 8
+  
+  # sim env
+  headless: False # False: OpenGL visualization
+  camera_view: 4 # 0 (top view), 1, 2, 3, 4
+  screenWidth: 720
+  screenHeight: 720
+
+  robot_type: 'fr3' 
+  robot_end_idx: 7
+  robot_num_dofs: 9
+  robot_speed_inv: 100
+  
+  action_dim: 4 # [x_start, z_start, x_end, z_end]
+  action_space: 4 # random action space scope
+
+  # Tool
+  gripper: True
+  pusher_len: 1.8
+  
+  # Save particles
+  fps: True
+  fps_number: 2000
+
+  rob_obj_dist_thresh: 0.05
+  contact_interval: 10
+  non_contact_interval: 30
+
+  # others
+  color_threshold: 0.01
