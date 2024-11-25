@@ -1,3 +1,0 @@
-/workspace/PyFleX/bindings/build/CMakeFiles/rebuild_cache.dir
-/workspace/PyFleX/bindings/build/CMakeFiles/pyflex.dir
-/workspace/PyFleX/bindings/build/CMakeFiles/edit_cache.dir
