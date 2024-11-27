@@ -30,8 +30,9 @@ class FlexEnv(gym.Env):
 
         self.robot = ERobot.URDF(file_path='/home/kevin/AdaptiGraph-Franka-Emika-Panda/AdaptiGraph/src/sim/assets/fr3/fr3_nogripper.urdf')
 
-        self.ets = self.robot.ets()
-        self.ets.jindices = self.ets.jindices.astype(int)  # Ensure jindices are integers
+        self.pandas = rtb.models.URDF.Panda().ets()
+        print(self.pandas)
+        # self.ets.jindices = self.ets.jindices.astype(int)  # Ensure jindices are integers
         
         # env component
         self.obj = self.dataset_config['obj']
@@ -68,8 +69,7 @@ class FlexEnv(gym.Env):
             [2.7437, 1.5708, 2.9007, -0.1518, 2.8065, 4.5169, 3.0159]   # upper limits
         ])
 
-        self.ets.qlim = joint_limits
-        self.ik_solver = rtb.IK_NR(pinv=False, joint_limits=self.ets.qlim)        
+        self.ik_solver = rtb.IK_GN(pinv=True, tol = 1e-2, ilimit=1000) 
 
 
         # # Populate the arrays
@@ -356,8 +356,8 @@ class FlexEnv(gym.Env):
                 end_effector_pos = s + (e-s) * i / steps # expected eef position
                 # end_effector_orn = p.getQuaternionFromEuler((orn).tolist())
 
-                print('end_effector_pos:', end_effector_pos)
-                print('orn:', orn)
+                # print('orn:', orn)
+
                 # print('end_effector_orn:', end_effector_orn)
                 #verify
                 # jointPoses = p.calculateInverseKinematics(self.robotId, 
@@ -372,10 +372,16 @@ class FlexEnv(gym.Env):
                 
 
                 # Update the desired pose with the current end effector position and orientation
-                self.ets.jindices = self.ets.jindices.astype(int)
-                current_pose = SE3((-end_effector_pos).tolist()) * SE3.RPY((-orn).tolist())
-                jointPoses_solver = self.ik_solver.solve(self.ets, current_pose)
-                jointPoses = jointPoses_solver.q
+                # Solve the inverse kinematics problem
+                Tep = self.pandas.fkine([0, -0.3, 0, -2.2, 0, 2, 0.7854])
+                # Tep = self.pandas.fkine(end_effector_pos,current_orentation, include_base=False)
+                # target_pose = SE3(end_effector_pos.tolist()) * SE3.RPY(orn.tolist(), order='xyz')
+                # jointPoses_solver = self.ik_solver.solve(self.pandas, target_pose)
+
+                jointPoses_solver = self.ik_solver.solve(self.pandas, Tep)
+                # jointPoses_solver = self.ik_solver.solve(self.ets, current_pose)
+                jointPoses = (jointPoses_solver.q)
+                # jointPoses = np.zeros(7)
 
     
                                                         
