@@ -1,0 +1,4 @@
+
+[submodule "AdaptiGraph"]
+    path = AdaptiGraph
+    url = <repository-url>

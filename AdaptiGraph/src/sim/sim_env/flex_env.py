@@ -4,6 +4,11 @@ import pyflex
 import gym
 import math
 from scipy.spatial.distance import cdist
+import roboticstoolbox as rtb
+from roboticstoolbox import IK_NR
+from roboticstoolbox.robot.ERobot import ERobot
+from spatialmath import SE3
+
 
 import pybullet as p
 import pybullet_data
@@ -22,7 +27,11 @@ class FlexEnv(gym.Env):
         super().__init__()
 
         self.dataset_config = config['dataset']
-        
+
+        self.robot = ERobot.URDF(file_path='/home/kevin/AdaptiGraph-Franka-Emika-Panda/AdaptiGraph/src/sim/assets/fr3/fr3_nogripper.urdf')
+
+        self.ets = self.robot.ets()
+        self.ets.jindices = self.ets.jindices.astype(int)  # Ensure jindices are integers
         
         # env component
         self.obj = self.dataset_config['obj']
@@ -43,26 +52,34 @@ class FlexEnv(gym.Env):
         self.ll = np.zeros(self.num_dofs)
         self.up = np.zeros(self.num_dofs)
         self.jointDamping = np.zeros(self.num_dofs)
-        joint_limits = [
-            {"name": "joint1", "lower": -2.5, "upper": 2.5, "velocity": 2.62, "effort": 87.0},  # Less aggressive rotation
-            {"name": "joint2", "lower": -1.5, "upper": 1.5, "velocity": 2.62, "effort": 87.0},  # Limited to avoid clipping
-            {"name": "joint3", "lower": -2.5, "upper": 2.5, "velocity": 2.62, "effort": 87.0},
-            {"name": "joint4", "lower": -2.9, "upper": -0.2, "velocity": 2.62, "effort": 87.0},  # Adjusted to prevent extreme tilts
-            {"name": "joint5", "lower": -2.5, "upper": 2.5, "velocity": 5.26, "effort": 12.0},
-            {"name": "joint6", "lower": 0.7, "upper": 4.2, "velocity": 4.0, "effort": 12.0},  # Less range for smoother movement
-            {"name": "joint7", "lower": -2.5, "upper": 2.5, "velocity": 5.26, "effort": 12.0},
-            {"name": "fr3_finger_joint1", "lower": 0.0, "upper": 0.04, "velocity": 0.2, "effort": 100},  # Fingers unchanged
-            {"name": "fr3_finger_joint2", "lower": 0.0, "upper": 0.04, "velocity": 0.2, "effort": 100},
-        ]
+        # joint_limits = [
+        #     {"name": "joint1", "lower": -2.5, "upper": 2.5, "velocity": 2.62, "effort": 87.0},  # Less aggressive rotation
+        #     {"name": "joint2", "lower": -1.5, "upper": 1.5, "velocity": 2.62, "effort": 87.0},  # Limited to avoid clipping
+        #     {"name": "joint3", "lower": -2.5, "upper": 2.5, "velocity": 2.62, "effort": 87.0},
+        #     {"name": "joint4", "lower": -2.9, "upper": -0.2, "velocity": 2.62, "effort": 87.0},  # Adjusted to prevent extreme tilts
+        #     {"name": "joint5", "lower": -2.5, "upper": 2.5, "velocity": 5.26, "effort": 12.0},
+        #     {"name": "joint6", "lower": 0.7, "upper": 4.2, "velocity": 4.0, "effort": 12.0},  # Less range for smoother movement
+        #     {"name": "joint7", "lower": -2.5, "upper": 2.5, "velocity": 5.26, "effort": 12.0},
+        #     {"name": "fr3_finger_joint1", "lower": 0.0, "upper": 0.04, "velocity": 0.2, "effort": 100},  # Fingers unchanged
+        #     {"name": "fr3_finger_joint2", "lower": 0.0, "upper": 0.04, "velocity": 0.2, "effort": 100},
+        # ]
+        joint_limits = np.array([
+            [-2.7437, -1.5708, -2.9007, -3.0421, -2.8065, 0.5445, -3.0159],  # lower limits
+            [2.7437, 1.5708, 2.9007, -0.1518, 2.8065, 4.5169, 3.0159]   # upper limits
+        ])
 
-        # Populate the arrays
-        for i, joint in enumerate(joint_limits):
-            self.ll[i] = joint["lower"]
-            self.up[i] = joint["upper"]
+        self.ets.qlim = joint_limits
+        self.ik_solver = rtb.IK_NR(pinv=False, joint_limits=self.ets.qlim)        
 
-        # Print to verify
-        print(f"Lower limits: {self.ll}")
-        print(f"Upper limits: {self.up}")
+
+        # # Populate the arrays
+        # for i, joint in enumerate(joint_limits):
+        #     self.ll[i] = joint["lower"]
+        #     self.up[i] = joint["upper"]
+
+        # # Print to verify
+        # print(f"Lower limits: {self.ll}")
+        # print(f"Upper limits: {self.up}")
 
         # set up pyflex
         self.screenWidth = self.dataset_config['screenWidth']
@@ -337,18 +354,30 @@ class FlexEnv(gym.Env):
             
             for i in range(steps):
                 end_effector_pos = s + (e-s) * i / steps # expected eef position
-                end_effector_orn = p.getQuaternionFromEuler((orn).tolist())
+                # end_effector_orn = p.getQuaternionFromEuler((orn).tolist())
+
+                print('end_effector_pos:', end_effector_pos)
+                print('orn:', orn)
+                # print('end_effector_orn:', end_effector_orn)
                 #verify
-                jointPoses = p.calculateInverseKinematics(self.robotId, 
-                                                        self.end_idx, 
-                                                        end_effector_pos,
-                                                        end_effector_orn, 
-                                                        lowerLimits = self.ll, 
-                                                        upperLimits = self.up,
-                                                        jointRanges = (self.up + self.ll).tolist(),
-                                                        # restPoses = self.rest_joints,
-                                                        )
-                                                    
+                # jointPoses = p.calculateInverseKinematics(self.robotId, 
+                #                                         self.end_idx, 
+                #                                         end_effector_pos,
+                #                                         end_effector_orn, 
+                #                                         lowerLimits = self.ll, 
+                #                                         upperLimits = self.up,
+                #                                         jointRanges = (self.up + self.ll).tolist(),
+                #                                         # restPoses = self.rest_joints,
+                #                                         )
+                
+
+                # Update the desired pose with the current end effector position and orientation
+                self.ets.jindices = self.ets.jindices.astype(int)
+                current_pose = SE3((-end_effector_pos).tolist()) * SE3.RPY((-orn).tolist())
+                jointPoses_solver = self.ik_solver.solve(self.ets, current_pose)
+                jointPoses = jointPoses_solver.q
+
+    
                                                         
                 # print('jointPoses:', jointPoses)
                 self.reset_robot(jointPoses)
